@@ -26,9 +26,9 @@ clang++ -emit-llvm -S -O0 ../test-cases/<input>.cpp -o ../test-cases/<output>.ll
 Note, we do `-O0` to turn off clang's optimizations. Otherwise, clang may automatically do loop invariant code motion for us.
 
 ## opt
-For the analysis pass:
+For the analysis pass -- if you want to see the output of the analysis, call the printer pass.
 ```
-opt -load-pass-plugin ./libloop-analysis-pass.so -passes=UTEID-loop-analysis-pass ../test-cases/<input>.ll
+opt -load-pass-plugin ./libloop-analysis-pass.so -passes=loop-properties-printer ../test-cases/<input>.ll
 ```
 
 For the transformation pass:

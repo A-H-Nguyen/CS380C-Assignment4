@@ -51,14 +51,18 @@ class LoopPropertiesPrinter : public llvm::PassInfoMixin<LoopPropertiesPrinter> 
 public:
   llvm::PreservedAnalyses 
   run(llvm::Function& F, llvm::FunctionAnalysisManager& FAM) {
+    llvm::errs() << "Printing loop properties for function:\t" 
+                 << F.getName() << "\n\n";
+
     auto& a = FAM.getResult<LoopPropertiesAnalysis >(F);
     for (auto &L : a) {
       L->print(llvm::errs());
     }
+
     return llvm::PreservedAnalyses::all();
   }
+  
+  static bool isRequired() { return true; }
 };
- 
-
 
 #endif

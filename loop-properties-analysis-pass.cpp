@@ -78,8 +78,6 @@ void LoopPropertiesAnalysis::LoopProperties::print(llvm::raw_ostream &OS) {
 
 LoopPropertiesAnalysis::Result 
 LoopPropertiesAnalysis::run(llvm::Function &F, llvm::FunctionAnalysisManager &FAM) {
-  llvm::errs() << "Here in function:\t" << F.getName() << "\n\n";
-  
   auto LV = std::vector<LoopProperties*>();
   auto& li = FAM.getResult<llvm::LoopAnalysis>(F);
 
@@ -99,11 +97,14 @@ LoopPropertiesAnalysis::run(llvm::Function &F, llvm::FunctionAnalysisManager &FA
   return LV;
 }
 
+llvm::AnalysisKey LoopPropertiesAnalysis::Key;
+
 //-----------------------------------------------------------------------------
 // New PM Registration
 //-----------------------------------------------------------------------------
 llvm::PassPluginLibraryInfo getLoopAnalysisPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "UTEID-Loop-Analysis-Pass", LLVM_VERSION_STRING,
+  return {LLVM_PLUGIN_API_VERSION, "loop-properties-analysis-pass", 
+          LLVM_VERSION_STRING,
           [](llvm::PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](llvm::StringRef Name, llvm::FunctionPassManager &FPM,
@@ -113,11 +114,11 @@ llvm::PassPluginLibraryInfo getLoopAnalysisPluginInfo() {
                     return true;
                   }
                   return false;
-                });
+            });
             PB.registerAnalysisRegistrationCallback(
                 [](llvm::FunctionAnalysisManager &FAM) {
                   FAM.registerPass([&] { return LoopPropertiesAnalysis(); });
-                });
+            });
           }};
 }
 
