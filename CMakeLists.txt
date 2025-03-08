@@ -12,6 +12,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   include_directories(/opt/homebrew/opt/llvm/include)
   link_directories(/opt/homebrew/opt/llvm/lib)
 else()
+  # These paths might be borked. But it hashtag works on my machine
   message("Linux Compile. looking for LLVM headers in /usr/lib/llvm-19")
   include_directories(/usr/lib/llvm-19/include)
   link_directories(/usr/lib/llvm-19/lib)  
@@ -26,7 +27,7 @@ if (${SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG} EQUAL "1")
 endif()
 
 add_library(loop-analysis-pass SHARED
-  ./UTEID-loop-analysis-pass.cpp
+  ./loop-properties-analysis-pass.cpp
 )
 
 add_library(loop-opt-pass SHARED
