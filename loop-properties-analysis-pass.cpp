@@ -3,8 +3,9 @@
 
 #include "loop-properties-analysis-pass.h"
 
-LoopProperties::LoopProperties(const llvm::LoopInfo &LI, const llvm::Loop *L, 
-                               unsigned int ID, llvm::StringRef FName) {
+LoopPropertiesAnalysis::LoopProperties::LoopProperties(
+    const llvm::LoopInfo &LI, const llvm::Loop *L, 
+    unsigned int LID, llvm::StringRef FName) {
   int numInstr = 0;
   int numAtomics = 0;
   int numBranches = 0;
@@ -47,7 +48,7 @@ LoopProperties::LoopProperties(const llvm::LoopInfo &LI, const llvm::Loop *L,
     }
   }
 
-  id = ID; 
+  id = LID; 
   func = FName;
   depth = L->getLoopDepth();     
   subLoops = !L->isInnermost();
@@ -57,7 +58,7 @@ LoopProperties::LoopProperties(const llvm::LoopInfo &LI, const llvm::Loop *L,
   branches = numBranches;
 }
 
-void LoopProperties::print(llvm::raw_ostream &OS) {
+void LoopPropertiesAnalysis::LoopProperties::print(llvm::raw_ostream &OS) {
   OS << id << ":\t"
      << "func="       << func 
      << ", depth="    << depth;
@@ -87,13 +88,13 @@ LoopPropertiesAnalysis::run(llvm::Function &F, llvm::FunctionAnalysisManager &FA
     // llvm::errs() << "Current Loop:\n"; 
     // loop->print(llvm::errs());
     // llvm::errs() << "\n"; 
-    LV.push_back(new LoopProperties(li, loop, ID, F.getName()));
-    ID++;
+    LV.push_back(new LoopProperties(li, loop, LID, F.getName()));
+    LID++;
   }
 
-  for (auto &L : LV) {
-    L->print(llvm::errs());
-  }
+  // for (auto &L : LV) {
+  //   L->print(llvm::errs());
+  // }
 
   return LV;
 }
@@ -107,12 +108,15 @@ llvm::PassPluginLibraryInfo getLoopAnalysisPluginInfo() {
             PB.registerPipelineParsingCallback(
                 [](llvm::StringRef Name, llvm::FunctionPassManager &FPM,
                    llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
-                  if (Name == "loop-properties-pass") {
-		                FPM.addPass(llvm::LoopSimplifyPass());
-                    FPM.addPass(LoopPropertiesAnalysis());
+                  if (Name == "loop-properties-printer") {
+                    FPM.addPass(LoopPropertiesPrinter());
                     return true;
                   }
                   return false;
+                });
+            PB.registerAnalysisRegistrationCallback(
+                [](llvm::FunctionAnalysisManager &FAM) {
+                  FAM.registerPass([&] { return LoopPropertiesAnalysis(); });
                 });
           }};
 }
