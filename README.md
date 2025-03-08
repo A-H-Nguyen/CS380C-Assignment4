@@ -16,3 +16,22 @@ This should be familiar for anyone who has used CMake before. if not then follow
 - CMake build files into `./build` using `cmake -S . -B ./build`
 - Run make on the newly built files. `make -C ./build`
 
+# Run Commands
+These commands assume that you are running from within the `build/` directory.
+
+## clang
+```
+clang++ -emit-llvm -S -O0 ../test-cases/<input>.cpp -o ../test-cases/<output>.ll
+```
+Note, we do `-O0` to turn off clang's optimizations. Otherwise, clang may automatically do loop invariant code motion for us.
+
+## opt
+For the analysis pass:
+```
+opt -load-pass-plugin ./libloop-analysis-pass.so -passes=UTEID-loop-analysis-pass ../test-cases/<input>.ll
+```
+
+For the transformation pass:
+```
+opt -load-pass-plugin ./libloop-opt-pass.so -passes=UTEID-loop-opt-pass ../test-cases/<input>.ll
+```

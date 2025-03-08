@@ -23,7 +23,6 @@ struct LoopPass : PassInfoMixin<LoopPass> {
   static bool isRequired() { return true; }
 };
 
-//-----------------------------------------------------------------------------
 // New PM Registration
 //-----------------------------------------------------------------------------
 llvm::PassPluginLibraryInfo getHelloWorldPluginInfo() {
