@@ -28,10 +28,13 @@ Note, we do `-O0` to turn off clang's optimizations. Otherwise, clang may automa
 ## opt
 For the analysis pass -- if you want to see the output of the analysis, call the printer pass.
 ```
-opt -load-pass-plugin ./libloop-analysis-pass.so -passes=loop-properties-printer ../test-cases/<input>.ll
+opt -load-pass-plugin ./libloop-analysis-pass.so -passes=loop-properties-printer \
+    ../test-cases/<input>.ll
 ```
 
 For the transformation pass:
 ```
-opt -load-pass-plugin ./libloop-opt-pass.so -passes=UTEID-loop-opt-pass ../test-cases/<input>.ll
+opt -load-pass-plugin ./libloop-analysis-pass.so \
+    -load-pass-plugin ./libloop-opt-pass.so -passes=UTEID-loop-opt-pass \
+    ../test-cases/<input>.ll
 ```

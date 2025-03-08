@@ -3,9 +3,11 @@
 
 #include "loop-properties-analysis-pass.h"
 
+using namespace llvm;
+
 LoopPropertiesAnalysis::LoopProperties::LoopProperties(
-    const llvm::LoopInfo &LI, const llvm::Loop *L, 
-    unsigned int LID, llvm::StringRef FName) {
+    const LoopInfo &LI, const Loop *L, 
+    unsigned int LID, StringRef FName) {
   int numInstr = 0;
   int numAtomics = 0;
   int numBranches = 0;
@@ -41,7 +43,7 @@ LoopPropertiesAnalysis::LoopProperties::LoopProperties(
       // Same as with num Basic Blocks -- don't want to count branch instrs
       // from the nested loops
       if (!isInnerLoopBlock) {
-        if (llvm::isa<llvm::BranchInst>(I)) {
+        if (isa<BranchInst>(I)) {
           numBranches++;
         }
       }
@@ -58,57 +60,57 @@ LoopPropertiesAnalysis::LoopProperties::LoopProperties(
   branches = numBranches;
 }
 
-void LoopPropertiesAnalysis::LoopProperties::print(llvm::raw_ostream &OS) {
+void LoopPropertiesAnalysis::LoopProperties::print(raw_ostream &OS) {
   OS << id << ":\t"
      << "func="       << func 
-     << ", depth="    << depth;
+     << ",\tdepth="    << depth;
 
   if (subLoops) {
-    OS << ", subLoops=true";
+    OS << ",\tsubLoops=true";
   } 
   else {
-    OS << ", subLoops=false";
+    OS << ",\tsubLoops=false";
   }
 
-  OS << ", BBs="      << BBs
-     << ", instrs="   << instrs
-     << ", atomics="  << atomics
-     << ", branches=" << branches << "\n";
+  OS << ",\tBBs="      << BBs
+     << ",\tinstrs="   << instrs
+     << ",\tatomics="  << atomics
+     << ",\tbranches=" << branches << "\n";
 }
 
 LoopPropertiesAnalysis::Result 
-LoopPropertiesAnalysis::run(llvm::Function &F, llvm::FunctionAnalysisManager &FAM) {
+LoopPropertiesAnalysis::run(Function &F, FunctionAnalysisManager &FAM) {
   auto LV = std::vector<LoopProperties*>();
-  auto& li = FAM.getResult<llvm::LoopAnalysis>(F);
+  auto& li = FAM.getResult<LoopAnalysis>(F);
 
   // Start our pass by iterating through only the top level loops (depth = 0)
   for (auto &loop : li.getLoopsInPreorder()) {
-    // llvm::errs() << "Current Loop:\n"; 
-    // loop->print(llvm::errs());
-    // llvm::errs() << "\n"; 
+    // errs() << "Current Loop:\n"; 
+    // loop->print(errs());
+    // errs() << "\n"; 
     LV.push_back(new LoopProperties(li, loop, LID, F.getName()));
     LID++;
   }
 
   // for (auto &L : LV) {
-  //   L->print(llvm::errs());
+  //   L->print(errs());
   // }
 
   return LV;
 }
 
-llvm::AnalysisKey LoopPropertiesAnalysis::Key;
+AnalysisKey LoopPropertiesAnalysis::Key;
 
 //-----------------------------------------------------------------------------
 // New PM Registration
 //-----------------------------------------------------------------------------
-llvm::PassPluginLibraryInfo getLoopAnalysisPluginInfo() {
+PassPluginLibraryInfo getLoopAnalysisPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "loop-properties-analysis-pass", 
           LLVM_VERSION_STRING,
-          [](llvm::PassBuilder &PB) {
+          [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
-                [](llvm::StringRef Name, llvm::FunctionPassManager &FPM,
-                   llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
+                [](StringRef Name, FunctionPassManager &FPM,
+                   ArrayRef<PassBuilder::PipelineElement>) {
                   if (Name == "loop-properties-printer") {
                     FPM.addPass(LoopPropertiesPrinter());
                     return true;
@@ -116,7 +118,7 @@ llvm::PassPluginLibraryInfo getLoopAnalysisPluginInfo() {
                   return false;
             });
             PB.registerAnalysisRegistrationCallback(
-                [](llvm::FunctionAnalysisManager &FAM) {
+                [](FunctionAnalysisManager &FAM) {
                   FAM.registerPass([&] { return LoopPropertiesAnalysis(); });
             });
           }};
@@ -125,7 +127,7 @@ llvm::PassPluginLibraryInfo getLoopAnalysisPluginInfo() {
 // This is the core interface for pass plugins. It guarantees that 'opt' will
 // be able to recognize HelloWorld when added to the pass pipeline on the
 // command line, i.e. via '-passes=hello-world'
-extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
+extern "C" LLVM_ATTRIBUTE_WEAK ::PassPluginLibraryInfo
 llvmGetPassPluginInfo() {
   return getLoopAnalysisPluginInfo();
 }
