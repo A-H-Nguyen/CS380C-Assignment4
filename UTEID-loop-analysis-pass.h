@@ -18,8 +18,7 @@
 
 class LoopPropertiesAnalysis : 
   public llvm::AnalysisInfoMixin<LoopPropertiesAnalysis> {
-
-protected:
+public:
   struct LoopProperties {
     unsigned int id;
     std::string func; // name of the function containing this loop
@@ -38,7 +37,6 @@ protected:
     void print(llvm::raw_ostream &OS);
   };
 
-public:
   using Result = std::vector<LoopProperties*>;
   Result run(llvm::Function &F, llvm::FunctionAnalysisManager &FAM);
 
