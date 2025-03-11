@@ -29,6 +29,8 @@ protected:
     int instrs;
     int atomics;
     int branches;
+    
+    const llvm::Loop *loop;
 
     LoopProperties(const llvm::LoopInfo &LI, const llvm::Loop *L, 
                    unsigned int LID, llvm::StringRef FName);
@@ -40,9 +42,8 @@ public:
   using Result = std::vector<LoopProperties*>;
   Result run(llvm::Function &F, llvm::FunctionAnalysisManager &FAM);
 
-  unsigned int LID = 0;  // a global counter for each loop encountered, starting at 0
-
 private:
+  unsigned int LID = 0;  // a global counter for each loop encountered, starting at 0
   static llvm::AnalysisKey Key;
   friend struct llvm::AnalysisInfoMixin<LoopPropertiesAnalysis>;
 };
@@ -51,13 +52,16 @@ class LoopPropertiesPrinter : public llvm::PassInfoMixin<LoopPropertiesPrinter> 
 public:
   llvm::PreservedAnalyses 
   run(llvm::Function& F, llvm::FunctionAnalysisManager& FAM) {
-    llvm::errs() << "Printing loop properties for function:\t" 
+    llvm::errs() << "\n-------------------------------\n"
+                 << "Printing loop properties for function:\t" 
                  << F.getName() << "\n\n";
 
     auto& a = FAM.getResult<LoopPropertiesAnalysis >(F);
     for (auto &L : a) {
       L->print(llvm::errs());
     }
+
+    llvm::errs() << "-------------------------------\n";
 
     return llvm::PreservedAnalyses::all();
   }

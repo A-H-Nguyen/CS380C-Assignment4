@@ -1,7 +1,9 @@
 #ifndef UTEID_LOOP_OPT_PASS_H
 #define UTEID_LOOP_OPT_PASS_H
 
+#include "loop-properties-analysis-pass.h"
 #include <llvm/Analysis/LoopInfo.h>
+#include <llvm/IR/Instruction.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Passes/PassPlugin.h>
@@ -9,6 +11,11 @@
 
 class LoopInvariantCodeMotion : 
     public llvm::PassInfoMixin<LoopInvariantCodeMotion> {
+
+private:
+  bool isLoopInvariant(llvm::Instruction *I);
+  bool safeToHoist(llvm::Instruction *I);
+  int maxLoopDepth(LoopPropertiesAnalysis::Result LP);
 
 public:
   // Main entry point, takes IR unit to run the pass on (&F) and the

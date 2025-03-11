@@ -52,12 +52,19 @@ LoopPropertiesAnalysis::LoopProperties::LoopProperties(
 
   id = LID; 
   func = FName;
-  depth = L->getLoopDepth();     
+  // We do loop depth minus 1 because part 1 tells us that loop depth is supposed
+  // to go from 0, and by default, getLoopDepth returns 1 for the top level loop :(
+  depth = L->getLoopDepth() - 1;     
   subLoops = !L->isInnermost();
   BBs = numBasicBlocks;
   instrs = numInstr;
   atomics = numAtomics;
   branches = numBranches;
+
+  // We save the actual loop object here that contains all the basic block
+  // and instruction info. Not required by part 1, but it makes writing part 2
+  // a little easier in my opinion
+  loop = L;
 }
 
 void LoopPropertiesAnalysis::LoopProperties::print(raw_ostream &OS) {
@@ -81,14 +88,14 @@ void LoopPropertiesAnalysis::LoopProperties::print(raw_ostream &OS) {
 LoopPropertiesAnalysis::Result 
 LoopPropertiesAnalysis::run(Function &F, FunctionAnalysisManager &FAM) {
   auto LV = std::vector<LoopProperties*>();
-  auto& li = FAM.getResult<LoopAnalysis>(F);
+  auto& LI = FAM.getResult<LoopAnalysis>(F);
 
   // Start our pass by iterating through only the top level loops (depth = 0)
-  for (auto &loop : li.getLoopsInPreorder()) {
+  for (auto &L : LI.getLoopsInPreorder()) {
     // errs() << "Current Loop:\n"; 
-    // loop->print(errs());
+    // L->print(errs());
     // errs() << "\n"; 
-    LV.push_back(new LoopProperties(li, loop, LID, F.getName()));
+    LV.push_back(new LoopProperties(LI, L, LID, F.getName()));
     LID++;
   }
 
