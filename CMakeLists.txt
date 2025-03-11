@@ -27,7 +27,7 @@ if (${SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG} EQUAL "1")
 endif()
 
 add_library(loop-analysis-pass SHARED
-  ./loop-properties-analysis-pass.cpp
+  ./UTEID-loop-analysis-pass.cpp
 )
 
 add_library(loop-opt-pass SHARED

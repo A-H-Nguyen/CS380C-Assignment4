@@ -1,6 +1,4 @@
 #include "UTEID-loop-opt-pass.h"
-#include "loop-properties-analysis-pass.h"
-#include <llvm/Support/raw_ostream.h>
 
 using namespace llvm;
 

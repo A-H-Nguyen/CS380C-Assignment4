@@ -1,7 +1,7 @@
 #include <llvm/Passes/PassPlugin.h>
 #include <string>
 
-#include "loop-properties-analysis-pass.h"
+#include "UTEID-loop-analysis-pass.h"
 
 using namespace llvm;
 
@@ -118,7 +118,7 @@ PassPluginLibraryInfo getLoopAnalysisPluginInfo() {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "loop-properties-printer") {
+                  if (Name == "UTEID-loop-analysis-pass") {
                     FPM.addPass(LoopPropertiesPrinter());
                     return true;
                   }

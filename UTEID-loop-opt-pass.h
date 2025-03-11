@@ -1,13 +1,14 @@
 #ifndef UTEID_LOOP_OPT_PASS_H
 #define UTEID_LOOP_OPT_PASS_H
 
-#include "loop-properties-analysis-pass.h"
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Passes/PassPlugin.h>
 #include <llvm/Support/raw_ostream.h>
+
+#include "UTEID-loop-analysis-pass.h"
 
 class LoopInvariantCodeMotion : 
     public llvm::PassInfoMixin<LoopInvariantCodeMotion> {
