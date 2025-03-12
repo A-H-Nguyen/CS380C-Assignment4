@@ -12,13 +12,13 @@ bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I) {
   auto T = I->getType();
   errs() << "\tCurr inst type: ";
   T->print(errs());
-  errs() << "\n\n";
+  errs() << "\n";
 
-  return true;
+  return false;
 }
 
 bool LoopInvariantCodeMotion::safeToHoist(llvm::Instruction *I) {
-  return true;
+  return false;
 }
 
 // Really simple function to see how deeply nested the loops in our function are
@@ -100,6 +100,8 @@ LoopInvariantCodeMotion::run(Function &F,
   // }
   for (int currDepth = maxLoopDepth(LP); currDepth > -1; currDepth--) {
     errs() << "Analyzing loops of depth = " << currDepth << "\n";
+
+    SmallVector<Instruction*> hoist_victims;
     
     // Here, we are iterating all the LoopProperties objects that have a depth
     // equal to currDepth, using the map that we created earlier
@@ -113,6 +115,10 @@ LoopInvariantCodeMotion::run(Function &F,
         
         // Iterate through all instruction in basic block BB
         for (auto &I : *BB) {
+          errs() << "\tCurr inst: ";
+          I.print(errs());
+          errs() << "\n";
+
           if (!isLoopInvariant(&I) && !safeToHoist(&I)) {
             continue;
           }
@@ -123,13 +129,51 @@ LoopInvariantCodeMotion::run(Function &F,
           // entirely. "Hoist" is just the compiler jargin for lifting code
           // outside the loop. You can think of it as, taking the code, and 
           // carrying it upwards, outside the loop (hence, "hoist").
-          errs() << "Hoist instruction: ";
-          I.print(errs());
-          errs() << "\n";
+          errs() << "\tInstr added to hoisting queue!";
+          errs() << "\n\n";
+          hoist_victims.push_back(&I);
         }
       }
       errs() << "\n";
     }
+
+    // The hoist_victims vector is an example of the "working list" concept
+    // Kayvan mentioned. If we try to edit basic blocks while parsing them,
+    // we're gonna have a bad time (don't ask how I know). So, we get a list
+    // of instructions that we know will be loop invariant, and then parse
+    // said list after we've looked at all the basic blocks we care about.
+    // The rest of the code in this loop is so that we can move the line of
+    // loop invariant code out of the loop.
+    //
+    // consider the following LLVM IR:
+    // 
+    // define i32 @main() #0 {        ; This is block zero
+    //   %1 = alloca i32, align 4
+    //   %2 = alloca i32, align 4
+    //   store i32 0, ptr %1, align 4
+    //   br label %3
+    //
+    // 3:                                                ; preds = %0, %3
+    //   store i32 1, ptr %2, align 4
+    //   br label %3, !llvm.loop !6
+    // }
+    //
+    // In general, we would want to move store i32 1, ptr %2, align 4 from
+    // block %3 to block %0.
+    // I know that for this assignment we ignore stores, but this is just a
+    // simple example that I think is fairly clear.
+    // So, in order to get to block %0, we get the Loop object containing
+    // block %3, then get the entry to said loop, and then from that, get the
+    // successor to the entry of the loop.
+    // That may have made zero sense.
+    // If that's the case, track me down to explain it irl.
+    for (auto &I : hoist_victims) {
+      auto L = LI.getLoopFor(I->getParent());
+      auto entry_block = L->getHeader()->getPrevNode();
+      I->removeFromParent();
+      I->insertBefore(&entry_block->back());
+    }
+
     errs() << "\n";
   }
 
