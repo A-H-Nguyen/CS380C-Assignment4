@@ -1,5 +1,5 @@
-#include "UTEID-loop-opt-pass.h"
-#include "UTEID-loop-analysis-pass.h"
+#include "an35288-loop-opt-pass.h"
+#include "an35288-loop-analysis-pass.h"
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Analysis/LoopInfo.h>
@@ -8,15 +8,41 @@
 
 using namespace llvm;
 
+/*
+ * An instruction is loop invariant if both of the following are true:
+ *
+ * 1. It's one of the following LLVM instructions/classes:
+ *
+ *      binary operator, shift, select, cast, getelementptr
+ *
+ *      All other LLVM instructions are considered not loop-invariant.
+ *
+ *      Some particulars to avoid moving include:
+ *
+ *      terminators, phi, load, sttore, call, invoke, malloc, free, alloca, vanext, vaarg
+ *
+ * 2. Every operand of the instruction is either:
+ *
+ *      i) constant, or
+ *
+ *      ii) computed outside the loop.
+ *
+ */
 bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I) {
-  auto T = I->getType();
-  errs() << "\tCurr inst type: ";
-  T->print(errs());
-  errs() << "\n";
 
-  return false;
+    auto T = I->getType();
+    errs() << "\tCurr inst type: ";
+    T->print(errs());
+    errs() << "\n";
+
+    return false;
 }
 
+/*
+ * An instruction is safe to hoise if either of the following is true:
+ *
+ * 1. It has no side effects (exceptions/traps). You can use isSafeToSpeculativelyExecute
+ */
 bool LoopInvariantCodeMotion::safeToHoist(llvm::Instruction *I) {
   return false;
 }
