@@ -3,7 +3,12 @@
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Analysis/LoopInfo.h>
+#include <llvm/IR/Constant.h>
+#include <llvm/IR/InstrTypes.h>
+#include <llvm/IR/Instruction.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/ValueMap.h>
+#include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
 
 using namespace llvm;
@@ -28,14 +33,63 @@ using namespace llvm;
  *      ii) computed outside the loop.
  *
  */
-bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I) {
+bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I, 
+                                              const llvm::LoopInfo &LI) {
+  // binary operator, shift, select, cast, getelementptr
+  if (!(isa<BinaryOperator>(I) || isa<SelectInst>(I) || isa<CastInst>(I) || 
+      isa<GetElementPtrInst>(I)))
+    return false;
+    // errs() << "Howdy :)\n";
 
-    auto T = I->getType();
-    errs() << "\tCurr inst type: ";
-    T->print(errs());
+  auto curr_loop = LI.getLoopFor(I->getParent());
+  SmallVector<bool> results;
+
+  for (auto &OP : I->operands()) {
+    errs() << "\tOperand " << OP.getOperandNo() << ":\t";
+    OP->print(errs());
     errs() << "\n";
 
-    return false;
+    auto op_def = dyn_cast<Instruction>(OP.get());
+    if (op_def) {
+      errs() << "\t\tOperand defined by instr\n";
+      auto op_parent_blk = op_def->getParent();
+      auto op_parent_loop = LI.getLoopFor(op_parent_blk);
+
+      if (curr_loop != op_parent_loop) {
+        errs() << "\t\tDefinition of operand " << OP.getOperandNo()
+               << " is outside of the current loop\n";
+        results.push_back(true);
+      }
+      else {
+        errs() << "\t\tDefinition of operand " << OP.getOperandNo()
+               << " is within the current loop\n";
+        results.push_back(false);
+      }
+    }
+    else {
+      if (isa<Constant>(OP)) {
+        errs() << "\t\tOperand " << OP.getOperandNo()
+               << " is a constant\n";
+        results.push_back(true);
+      }
+      else {
+        errs() << "\t\tOperand " << OP.getOperandNo()
+               << " is not a constant\n";
+        results.push_back(false);
+      }
+    }
+  }
+  
+  bool loop_invariance = all_of(results, [](bool R) { return R; });
+  if (loop_invariance) {
+    errs() << "\tCurr instr is loop invariant\n";
+  }
+  else {
+    errs() << "\tCurr instr is NOT loop invariant\n";
+  }
+  errs() << "\n\n";
+
+  return loop_invariance;
 }
 
 /*
@@ -145,7 +199,7 @@ LoopInvariantCodeMotion::run(Function &F,
           I.print(errs());
           errs() << "\n";
 
-          if (!isLoopInvariant(&I) && !safeToHoist(&I)) {
+          if (!isLoopInvariant(&I, LI) && !safeToHoist(&I)) {
             continue;
           }
           
@@ -213,12 +267,12 @@ LoopInvariantCodeMotion::run(Function &F,
 // New PM Registration
 //-----------------------------------------------------------------------------
 PassPluginLibraryInfo getLoopOptPassPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "UTEID-Loop-Opt-Pass", LLVM_VERSION_STRING,
+  return {LLVM_PLUGIN_API_VERSION, "an35288-Loop-Opt-Pass", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "UTEID-loop-opt-pass") {
+                  if (Name == "an35288-loop-opt-pass") {
 		                FPM.addPass(LoopSimplifyPass());
                     FPM.addPass(LoopInvariantCodeMotion());
                     return true;

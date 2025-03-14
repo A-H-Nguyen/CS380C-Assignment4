@@ -14,7 +14,7 @@ class LoopInvariantCodeMotion :
     public llvm::PassInfoMixin<LoopInvariantCodeMotion> {
 
 private:
-  bool isLoopInvariant(llvm::Instruction *I);
+  bool isLoopInvariant(llvm::Instruction *I, const llvm::LoopInfo &LI);
   bool safeToHoist(llvm::Instruction *I);
   int maxLoopDepth(LoopPropertiesAnalysis::Result LP);
 
