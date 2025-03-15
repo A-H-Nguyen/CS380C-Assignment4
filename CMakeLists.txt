@@ -27,11 +27,11 @@ if (${SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG} EQUAL "1")
 endif()
 
 add_library(loop-analysis-pass SHARED
-        an35288-loop-analysis-pass.cpp
+        mp49774-an35288-loop-analysis-pass.cpp
 )
 
 add_library(loop-opt-pass SHARED
-        an35288-loop-opt-pass.cpp
+        mp49774-an35288-loop-opt-pass.cpp
 )
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")

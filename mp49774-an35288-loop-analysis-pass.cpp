@@ -1,7 +1,7 @@
 #include <llvm/Passes/PassPlugin.h>
 #include <string>
 
-#include "an35288-loop-analysis-pass.h"
+#include "mp49774-an35288-loop-analysis-pass.h"
 
 using namespace llvm;
 
@@ -113,13 +113,13 @@ AnalysisKey LoopPropertiesAnalysis::Key;
 // New PM Registration
 //-----------------------------------------------------------------------------
 PassPluginLibraryInfo getLoopAnalysisPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "loop-properties-analysis-pass", 
+  return {LLVM_PLUGIN_API_VERSION, "mp49774-an35288-loop-properties-analysis-pass",
           LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "UTEID-loop-analysis-pass") {
+                  if (Name == "mp49774-an35288-loop-analysis-pass") {
                     FPM.addPass(LoopPropertiesPrinter());
                     return true;
                   }

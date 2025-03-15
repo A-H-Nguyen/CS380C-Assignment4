@@ -1,0 +1,1 @@
+opt -load-pass-plugin libloop-analysis-pass.so -passes="an35288-loop-analysis-pass" <$INPUT >/dev/null2>$OUTPUT
