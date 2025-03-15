@@ -1,5 +1,5 @@
-#include "an35288-loop-opt-pass.h"
-#include "an35288-loop-analysis-pass.h"
+#include "mp49774-an35288-loop-opt-pass.h"
+#include "mp49774-an35288-loop-analysis-pass.h"
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Analysis/LoopInfo.h>
@@ -10,6 +10,9 @@
 #include <llvm/IR/ValueMap.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
+
+#include <llvm/Analysis/ValueTracking.h>
+#include <llvm/IR/Dominators.h>
 
 using namespace llvm;
 
@@ -95,10 +98,49 @@ bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I,
 /*
  * An instruction is safe to hoise if either of the following is true:
  *
- * 1. It has no side effects (exceptions/traps). You can use isSafeToSpeculativelyExecute
+ * 1. It has no side effects (exceptions/traps). You can use isSafeToSpeculativelyExecute() in <llvm/Analysis/ValueTracking.h>
+ *
+ * 2. The basic block containing the instruction dominates all exit blocks for the loop. The exit blocks are targets
+ *      of exits from the loop, i.e. they are outside the loop.
  */
-bool LoopInvariantCodeMotion::safeToHoist(llvm::Instruction *I) {
-  return false;
+bool LoopInvariantCodeMotion::safeToHoist(llvm::Instruction *I,
+                                          const llvm::LoopInfo &LI,
+                                          const llvm::DominatorTree &DT) {
+
+    if(isSafeToSpeculativelyExecute(I)){
+       return true;
+    }
+
+    // get the BB of the instruction
+    BasicBlock *BB = I->getParent();
+
+    // get the loop of the BB of the instruction
+    const Loop *L = LI.getLoopFor(BB);
+
+    // todo - what to do in the case for loopless instructions?
+    if(!L){
+        return false; // don't touch for now
+    }
+
+    // obtain exit blocks for the loop
+    std::vector<BasicBlock*> ExitBlocks;
+    for (auto *Succ : successors(BB)) {
+        if (L->isLoopExiting(Succ)) {
+            ExitBlocks.push_back(Succ);
+        }
+    }
+
+    // Check if the containing basic block dominates all exit blocks
+    bool DominatesAllExits = true;
+    for (auto *ExitBB : ExitBlocks) {
+        if (!DT.dominates(BB, ExitBB)) {
+            DominatesAllExits = false;
+            break;
+        }
+    }
+
+    return DominatesAllExits;
+
 }
 
 // Really simple function to see how deeply nested the loops in our function are
@@ -125,7 +167,10 @@ LoopInvariantCodeMotion::run(Function &F,
 
   // Code for getting the "loop properties" from part 1
   // (LP for Loop Properties)
-  auto &LP = FAM.getResult<LoopPropertiesAnalysis >(F);
+  auto &LP = FAM.getResult<LoopPropertiesAnalysis>(F);
+
+  // yoink the dom tree analysis results
+  auto &DT = FAM.getResult<DominatorTreeAnalysis>(F);
 
   // When I first wrote this, there were so many nested loops, just really bad.
   // My method to alleviate that is to create a map, where we map the depth value 
@@ -199,7 +244,7 @@ LoopInvariantCodeMotion::run(Function &F,
           I.print(errs());
           errs() << "\n";
 
-          if (!isLoopInvariant(&I, LI) && !safeToHoist(&I)) {
+          if (!isLoopInvariant(&I, LI) || !safeToHoist(&I, LI, DT)) {
             continue;
           }
           
@@ -267,12 +312,12 @@ LoopInvariantCodeMotion::run(Function &F,
 // New PM Registration
 //-----------------------------------------------------------------------------
 PassPluginLibraryInfo getLoopOptPassPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "an35288-Loop-Opt-Pass", LLVM_VERSION_STRING,
+  return {LLVM_PLUGIN_API_VERSION, "mp49774-an35288-Loop-Opt-Pass", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "an35288-loop-opt-pass") {
+                  if (Name == "mp49774-an35288-loop-opt-pass") {
 		                FPM.addPass(LoopSimplifyPass());
                     FPM.addPass(LoopInvariantCodeMotion());
                     return true;

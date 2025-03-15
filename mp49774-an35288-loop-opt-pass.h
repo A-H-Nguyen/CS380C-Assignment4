@@ -1,21 +1,24 @@
-#ifndef UTEID_LOOP_OPT_PASS_H
-#define UTEID_LOOP_OPT_PASS_H
+#ifndef MP49774_AN35288_LOOP_OPT_PASS_H
+#define MP49774_AN35288_LOOP_OPT_PASS_H
 
-#include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Passes/PassPlugin.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include "an35288-loop-analysis-pass.h"
+// additional passes
+#include <llvm/Analysis/LoopInfo.h>
+#include <llvm/IR/Dominators.h>
+
+#include "mp49774-an35288-loop-analysis-pass.h"
 
 class LoopInvariantCodeMotion : 
     public llvm::PassInfoMixin<LoopInvariantCodeMotion> {
 
 private:
   bool isLoopInvariant(llvm::Instruction *I, const llvm::LoopInfo &LI);
-  bool safeToHoist(llvm::Instruction *I);
+  bool safeToHoist(llvm::Instruction *I, const llvm::LoopInfo &LI, const llvm::DominatorTree &DT);
   int maxLoopDepth(LoopPropertiesAnalysis::Result LP);
 
 public:
