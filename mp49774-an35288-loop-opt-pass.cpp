@@ -1,10 +1,18 @@
-#include "an35288-loop-opt-pass.h"
-#include "an35288-loop-analysis-pass.h"
+#include "mp49774-an35288-loop-opt-pass.h"
+#include "mp49774-an35288-loop-analysis-pass.h"
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Analysis/LoopInfo.h>
+#include <llvm/IR/Constant.h>
+#include <llvm/IR/InstrTypes.h>
+#include <llvm/IR/Instruction.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/ValueMap.h>
+#include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
+
+#include <llvm/Analysis/ValueTracking.h>
+#include <llvm/IR/Dominators.h>
 
 using namespace llvm;
 
@@ -28,23 +36,131 @@ using namespace llvm;
  *      ii) computed outside the loop.
  *
  */
-bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I) {
-
-    auto T = I->getType();
-    errs() << "\tCurr inst type: ";
-    T->print(errs());
-    errs() << "\n";
-
+bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I, 
+                                              const llvm::LoopInfo &LI) {
+  // binary operator, shift, select, cast, getelementptr
+  // todo - why is shift not included??
+  if (!(isa<BinaryOperator>(I) || isa<SelectInst>(I) || isa<CastInst>(I) || 
+      isa<GetElementPtrInst>(I) || I->isShift()))
     return false;
+    // errs() << "Howdy :)\n";
+
+  auto curr_loop = LI.getLoopFor(I->getParent());
+  SmallVector<bool> results;
+
+  for (auto &OP : I->operands()) {
+
+    //errs() << "\tOperand " << OP.getOperandNo() << ":\t";
+    //OP->print(errs());
+    //errs() << "\n";
+
+    auto op_def = dyn_cast<Instruction>(OP.get());
+
+      if (op_def && curr_loop->contains(op_def)) {
+          return false;
+      }
+
+    /*
+      auto arg_def = dyn_cast<Argument>(OP.get());
+      if (op_def) {
+      errs() << "\t\tOperand defined by instr\n";
+      auto op_parent_blk = op_def->getParent();
+      auto op_parent_loop = LI.getLoopFor(op_parent_blk);
+
+      if (curr_loop != op_parent_loop) {
+        errs() << "\t\tDefinition of operand " << OP.getOperandNo()
+               << " is outside of the current loop\n";
+        results.push_back(true);
+      }
+      else {
+        errs() << "\t\tDefinition of operand " << OP.getOperandNo()
+               << " is within the current loop\n";
+        results.push_back(false);
+      }
+    }
+
+    else if(arg_def){
+        errs() << "\t\tDefinition of operand " << OP.getOperandNo()
+               << " is from a function param\n";
+        results.push_back(true);
+    }
+
+    // op is not defined within the loop, so proceed
+    else {
+      if (isa<Constant>(OP)) {
+        errs() << "\t\tOperand " << OP.getOperandNo()
+               << " is a constant\n";
+        results.push_back(true);
+      }
+      else {
+        errs() << "\t\tOperand " << OP.getOperandNo()
+               << " is not a constant\n";
+        results.push_back(false);
+      }
+    }*/
+  }
+    return true;
+
+    /*bool loop_invariance = all_of(results, [](bool R) { return R; });
+  if (loop_invariance) {
+    errs() << "\tCurr instr is loop invariant\n";
+  }
+  else {
+    errs() << "\tCurr instr is NOT loop invariant\n";
+  }
+  errs() << "\n\n";
+
+  return loop_invariance;*/
 }
 
 /*
  * An instruction is safe to hoise if either of the following is true:
  *
- * 1. It has no side effects (exceptions/traps). You can use isSafeToSpeculativelyExecute
+ * 1. It has no side effects (exceptions/traps). You can use isSafeToSpeculativelyExecute() in <llvm/Analysis/ValueTracking.h>
+ *
+ * 2. The basic block containing the instruction dominates all exit blocks for the loop. The exit blocks are targets
+ *      of exits from the loop, i.e. they are outside the loop.
  */
-bool LoopInvariantCodeMotion::safeToHoist(llvm::Instruction *I) {
-  return false;
+bool LoopInvariantCodeMotion::safeToHoist(llvm::Instruction *I,
+                                          const llvm::LoopInfo &LI,
+                                          const llvm::DominatorTree &DT) {
+
+    if(isSafeToSpeculativelyExecute(I)){
+       return true;
+    }
+
+    // get the BB of the instruction
+    BasicBlock *BB = I->getParent();
+
+    // get the loop of the BB of the instruction
+    const Loop *L = LI.getLoopFor(BB);
+
+    // todo - what to do in the case for loopless instructions?
+    if(!L){
+        return false; // don't touch for now
+    }
+
+    // obtain exit blocks for the loop
+    /*std::vector<BasicBlock*> ExitBlocks;
+    for (auto *Succ : successors(BB)) {
+        if (L->isLoopExiting(Succ)) {
+            ExitBlocks.push_back(Succ);
+        }
+    }*/
+
+    // Check if the containing basic block dominates all exit blocks
+    bool DominatesAllExits = true;
+    SmallVector<BasicBlock *, 16> exitBlocks;
+    L->getExitBlocks(exitBlocks);
+    for (auto *ExitBB : exitBlocks) {
+        if (!DT.dominates(BB, ExitBB)) {
+            DominatesAllExits = false;
+            break;
+        }
+    }
+
+    return DominatesAllExits;
+
 }
 
 // Really simple function to see how deeply nested the loops in our function are
@@ -63,7 +179,7 @@ int LoopInvariantCodeMotion::maxLoopDepth(LoopPropertiesAnalysis::Result LP) {
 PreservedAnalyses 
 LoopInvariantCodeMotion::run(Function &F, 
                              FunctionAnalysisManager &FAM) {
-  errs() << "hey ;)\n";
+  //errs() << "hey ;)\n";
 
   // get the basic Loop Information analysis passes
   // (LI for Loop Info)
@@ -71,7 +187,10 @@ LoopInvariantCodeMotion::run(Function &F,
 
   // Code for getting the "loop properties" from part 1
   // (LP for Loop Properties)
-  auto &LP = FAM.getResult<LoopPropertiesAnalysis >(F);
+  auto &LP = FAM.getResult<LoopPropertiesAnalysis>(F);
+
+  // yoink the dom tree analysis results
+  auto &DT = FAM.getResult<DominatorTreeAnalysis>(F);
 
   // When I first wrote this, there were so many nested loops, just really bad.
   // My method to alleviate that is to create a map, where we map the depth value 
@@ -125,27 +244,34 @@ LoopInvariantCodeMotion::run(Function &F,
   //    }
   // }
   for (int currDepth = maxLoopDepth(LP); currDepth > -1; currDepth--) {
-    errs() << "Analyzing loops of depth = " << currDepth << "\n";
+    //errs() << "Analyzing loops of depth = " << currDepth << "\n";
 
     SmallVector<Instruction*> hoist_victims;
     
     // Here, we are iterating all the LoopProperties objects that have a depth
     // equal to currDepth, using the map that we created earlier
-    for (auto &L : LPM.find(currDepth)->second) {
-      errs() << "Current Loop:\n";
-      L->print(errs());
-      errs() << "\n";
+    auto found = LPM.find(currDepth);
+
+    if(found == LPM.end()){
+        //errs() << "Couldn't find loop of depth: " << currDepth << '\n';
+        continue;
+    }
+
+    for (auto &L : found->second) {
+      //errs() << "Current Loop:\n";
+      //L->print(errs());
+      //errs() << "\n";
 
       // Iterate through all the basic blocks in the loop, L
       for (auto &BB : L->loop->blocks()) {
         
         // Iterate through all instruction in basic block BB
         for (auto &I : *BB) {
-          errs() << "\tCurr inst: ";
-          I.print(errs());
-          errs() << "\n";
+          //errs() << "\tCurr inst: ";
+          //I.print(errs());
+          //errs() << "\n";
 
-          if (!isLoopInvariant(&I) && !safeToHoist(&I)) {
+          if (!isLoopInvariant(&I, LI) || !safeToHoist(&I, LI, DT)) {
             continue;
           }
           
@@ -155,12 +281,17 @@ LoopInvariantCodeMotion::run(Function &F,
           // entirely. "Hoist" is just the compiler jargin for lifting code
           // outside the loop. You can think of it as, taking the code, and 
           // carrying it upwards, outside the loop (hence, "hoist").
-          errs() << "\tInstr added to hoisting queue!";
-          errs() << "\n\n";
+          //errs() << "\tInstr added to hoisting queue!";
+          //errs() << "\n\n";
           hoist_victims.push_back(&I);
+
+          // recompute Dominator Tree in the event we hoist.
+          //DT.recalculate(F);
+
+
         }
       }
-      errs() << "\n";
+      //errs() << "\n";
     }
 
     // The hoist_victims vector is an example of the "working list" concept
@@ -193,19 +324,28 @@ LoopInvariantCodeMotion::run(Function &F,
     // successor to the entry of the loop.
     // That may have made zero sense.
     // If that's the case, track me down to explain it irl.
+
+    bool hoisted = false;
     for (auto &I : hoist_victims) {
       auto L = LI.getLoopFor(I->getParent());
       auto entry_block = L->getHeader()->getPrevNode();
       I->removeFromParent();
       I->insertBefore(&entry_block->back());
+      hoisted = true;
     }
 
-    errs() << "\n";
+    // redo this depth if there was hoisting happening
+    if (hoisted) {
+        currDepth++;
+    }
+
+
+    //errs() << "\n";
   }
 
-  errs() << "\nOutput IR of our pass:\n\n";
-  F.print(errs());
-  errs() << "\n\n";
+  //errs() << "\nOutput IR of our pass:\n\n";
+  //F.print(errs());
+  //errs() << "\n\n";
 
   return PreservedAnalyses::all();
 }
@@ -213,12 +353,12 @@ LoopInvariantCodeMotion::run(Function &F,
 // New PM Registration
 //-----------------------------------------------------------------------------
 PassPluginLibraryInfo getLoopOptPassPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "UTEID-Loop-Opt-Pass", LLVM_VERSION_STRING,
+  return {LLVM_PLUGIN_API_VERSION, "mp49774-an35288-Loop-Opt-Pass", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "UTEID-loop-opt-pass") {
+                  if (Name == "mp49774-an35288-loop-opt-pass") {
 		                FPM.addPass(LoopSimplifyPass());
                     FPM.addPass(LoopInvariantCodeMotion());
                     return true;

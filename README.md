@@ -21,7 +21,7 @@ These commands assume that you are running from within the `build/` directory.
 
 ## clang
 ```
-clang++ -emit-llvm -S -O0 ../test-cases/<input>.cpp -o ../test-cases/<output>.ll
+clang++ -S -emit-llvm -g0 -O0 -Xclang -disable-O0-optnone ../test-cases/<input>.cpp -o ../test-cases/<output>.ll
 ```
 Note, we do `-O0` to turn off clang's optimizations. Otherwise, clang may automatically do loop invariant code motion for us.
 

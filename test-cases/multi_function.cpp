@@ -1,26 +1,46 @@
-void foo() {
+
+volatile int gabagoul = 0;
+int foo() {
   int y;
-  while (true) {
-    y = 1;
+  while (gabagoul < 5) {
+      gabagoul++;
   }
+  y = gabagoul;
+  return y;
 }
 
-void bar() {
+int bar() {
   int z;
-  while (true) {
-    z = 1;
+  while (gabagoul > 0) {
+    gabagoul--;
   }
+  z = gabagoul;
+  gabagoul = 5;
+  return z;
+}
+
+int kay() {
+    foo();
+    bar();
+
+    int x = foo();
+    int y = bar();
+    int z = 0;
+    return z;
 }
 
 int main() {
   foo();
   bar();
 
-  int x;
-  while (true) {
-    x = 1;
+  int x = foo(); // 5
+  int y = bar(); // 0
+  int z = 0;
+  while (0 < gabagoul) {
+    z = x+5;
+    gabagoul--;
   }
-  return 0;
+  return z; // 10
 }
 
 
