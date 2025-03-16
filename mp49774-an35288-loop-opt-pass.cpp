@@ -39,8 +39,9 @@ using namespace llvm;
 bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I, 
                                               const llvm::LoopInfo &LI) {
   // binary operator, shift, select, cast, getelementptr
+  // todo - why is shift not included??
   if (!(isa<BinaryOperator>(I) || isa<SelectInst>(I) || isa<CastInst>(I) || 
-      isa<GetElementPtrInst>(I)))
+      isa<GetElementPtrInst>(I) || I->isShift()))
     return false;
     // errs() << "Howdy :)\n";
 
@@ -48,14 +49,20 @@ bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I,
   SmallVector<bool> results;
 
   for (auto &OP : I->operands()) {
-    errs() << "\tOperand " << OP.getOperandNo() << ":\t";
-    OP->print(errs());
-    errs() << "\n";
+
+    //errs() << "\tOperand " << OP.getOperandNo() << ":\t";
+    //OP->print(errs());
+    //errs() << "\n";
 
     auto op_def = dyn_cast<Instruction>(OP.get());
-    auto arg_def = dyn_cast<Argument>(OP.get());
 
-    if (op_def) {
+      if (op_def && curr_loop->contains(op_def)) {
+          return false;
+      }
+
+    /*
+      auto arg_def = dyn_cast<Argument>(OP.get());
+      if (op_def) {
       errs() << "\t\tOperand defined by instr\n";
       auto op_parent_blk = op_def->getParent();
       auto op_parent_loop = LI.getLoopFor(op_parent_blk);
@@ -78,6 +85,7 @@ bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I,
         results.push_back(true);
     }
 
+    // op is not defined within the loop, so proceed
     else {
       if (isa<Constant>(OP)) {
         errs() << "\t\tOperand " << OP.getOperandNo()
@@ -89,10 +97,11 @@ bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I,
                << " is not a constant\n";
         results.push_back(false);
       }
-    }
+    }*/
   }
-  
-  bool loop_invariance = all_of(results, [](bool R) { return R; });
+    return true;
+
+    /*bool loop_invariance = all_of(results, [](bool R) { return R; });
   if (loop_invariance) {
     errs() << "\tCurr instr is loop invariant\n";
   }
@@ -101,7 +110,7 @@ bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I,
   }
   errs() << "\n\n";
 
-  return loop_invariance;
+  return loop_invariance;*/
 }
 
 /*
@@ -132,16 +141,18 @@ bool LoopInvariantCodeMotion::safeToHoist(llvm::Instruction *I,
     }
 
     // obtain exit blocks for the loop
-    std::vector<BasicBlock*> ExitBlocks;
+    /*std::vector<BasicBlock*> ExitBlocks;
     for (auto *Succ : successors(BB)) {
         if (L->isLoopExiting(Succ)) {
             ExitBlocks.push_back(Succ);
         }
-    }
+    }*/
 
     // Check if the containing basic block dominates all exit blocks
     bool DominatesAllExits = true;
-    for (auto *ExitBB : ExitBlocks) {
+    SmallVector<BasicBlock *, 16> exitBlocks;
+    L->getExitBlocks(exitBlocks);
+    for (auto *ExitBB : exitBlocks) {
         if (!DT.dominates(BB, ExitBB)) {
             DominatesAllExits = false;
             break;
@@ -168,7 +179,7 @@ int LoopInvariantCodeMotion::maxLoopDepth(LoopPropertiesAnalysis::Result LP) {
 PreservedAnalyses 
 LoopInvariantCodeMotion::run(Function &F, 
                              FunctionAnalysisManager &FAM) {
-  errs() << "hey ;)\n";
+  //errs() << "hey ;)\n";
 
   // get the basic Loop Information analysis passes
   // (LI for Loop Info)
@@ -233,7 +244,7 @@ LoopInvariantCodeMotion::run(Function &F,
   //    }
   // }
   for (int currDepth = maxLoopDepth(LP); currDepth > -1; currDepth--) {
-    errs() << "Analyzing loops of depth = " << currDepth << "\n";
+    //errs() << "Analyzing loops of depth = " << currDepth << "\n";
 
     SmallVector<Instruction*> hoist_victims;
     
@@ -242,23 +253,23 @@ LoopInvariantCodeMotion::run(Function &F,
     auto found = LPM.find(currDepth);
 
     if(found == LPM.end()){
-        errs() << "Couldn't find loop of depth: " << currDepth << '\n';
+        //errs() << "Couldn't find loop of depth: " << currDepth << '\n';
         continue;
     }
 
     for (auto &L : found->second) {
-      errs() << "Current Loop:\n";
-      L->print(errs());
-      errs() << "\n";
+      //errs() << "Current Loop:\n";
+      //L->print(errs());
+      //errs() << "\n";
 
       // Iterate through all the basic blocks in the loop, L
       for (auto &BB : L->loop->blocks()) {
         
         // Iterate through all instruction in basic block BB
         for (auto &I : *BB) {
-          errs() << "\tCurr inst: ";
-          I.print(errs());
-          errs() << "\n";
+          //errs() << "\tCurr inst: ";
+          //I.print(errs());
+          //errs() << "\n";
 
           if (!isLoopInvariant(&I, LI) || !safeToHoist(&I, LI, DT)) {
             continue;
@@ -270,12 +281,17 @@ LoopInvariantCodeMotion::run(Function &F,
           // entirely. "Hoist" is just the compiler jargin for lifting code
           // outside the loop. You can think of it as, taking the code, and 
           // carrying it upwards, outside the loop (hence, "hoist").
-          errs() << "\tInstr added to hoisting queue!";
-          errs() << "\n\n";
+          //errs() << "\tInstr added to hoisting queue!";
+          //errs() << "\n\n";
           hoist_victims.push_back(&I);
+
+          // recompute Dominator Tree in the event we hoist.
+          //DT.recalculate(F);
+
+
         }
       }
-      errs() << "\n";
+      //errs() << "\n";
     }
 
     // The hoist_victims vector is an example of the "working list" concept
@@ -308,19 +324,28 @@ LoopInvariantCodeMotion::run(Function &F,
     // successor to the entry of the loop.
     // That may have made zero sense.
     // If that's the case, track me down to explain it irl.
+
+    bool hoisted = false;
     for (auto &I : hoist_victims) {
       auto L = LI.getLoopFor(I->getParent());
       auto entry_block = L->getHeader()->getPrevNode();
       I->removeFromParent();
       I->insertBefore(&entry_block->back());
+      hoisted = true;
     }
 
-    errs() << "\n";
+    // redo this depth if there was hoisting happening
+    if (hoisted) {
+        currDepth++;
+    }
+
+
+    //errs() << "\n";
   }
 
-  errs() << "\nOutput IR of our pass:\n\n";
-  F.print(errs());
-  errs() << "\n\n";
+  //errs() << "\nOutput IR of our pass:\n\n";
+  //F.print(errs());
+  //errs() << "\n\n";
 
   return PreservedAnalyses::all();
 }
