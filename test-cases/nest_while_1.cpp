@@ -1,10 +1,15 @@
-int main() {
-  int x = 0, y = 0;
-  while ( x < 5) {
-    while ( y < 5 ) {
-      y++;
+int square(int num, int a, int b) {
+    int x = 0;
+    int z = 1;
+    for (int i = 0; i < 10; i++) {
+        for(int j = 0; j < 30; j++) {
+            x = a+b+i;
+            z = 1+1;
+        }
     }
-    x++;
-  }
-  return x + y;
+    return x + z;
+}
+
+int main() {
+  return square(0,1,2);
 }

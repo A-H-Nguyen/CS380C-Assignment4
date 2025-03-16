@@ -53,6 +53,8 @@ bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I,
     errs() << "\n";
 
     auto op_def = dyn_cast<Instruction>(OP.get());
+    auto arg_def = dyn_cast<Argument>(OP.get());
+
     if (op_def) {
       errs() << "\t\tOperand defined by instr\n";
       auto op_parent_blk = op_def->getParent();
@@ -69,6 +71,13 @@ bool LoopInvariantCodeMotion::isLoopInvariant(llvm::Instruction *I,
         results.push_back(false);
       }
     }
+
+    else if(arg_def){
+        errs() << "\t\tDefinition of operand " << OP.getOperandNo()
+               << " is from a function param\n";
+        results.push_back(true);
+    }
+
     else {
       if (isa<Constant>(OP)) {
         errs() << "\t\tOperand " << OP.getOperandNo()
@@ -230,7 +239,14 @@ LoopInvariantCodeMotion::run(Function &F,
     
     // Here, we are iterating all the LoopProperties objects that have a depth
     // equal to currDepth, using the map that we created earlier
-    for (auto &L : LPM.find(currDepth)->second) {
+    auto found = LPM.find(currDepth);
+
+    if(found == LPM.end()){
+        errs() << "Couldn't find loop of depth: " << currDepth << '\n';
+        continue;
+    }
+
+    for (auto &L : found->second) {
       errs() << "Current Loop:\n";
       L->print(errs());
       errs() << "\n";

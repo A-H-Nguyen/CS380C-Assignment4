@@ -15,7 +15,7 @@ else()
   # These paths might be borked. But it hashtag works on my machine
   message("Linux Compile. looking for LLVM headers in /usr/lib/llvm-19")
   include_directories(/usr/lib/llvm-19/include)
-  link_directories(/usr/lib/llvm-19/lib)  
+  link_directories(/usr/lib/llvm-19/lib)
 endif()
 
 
@@ -28,10 +28,12 @@ endif()
 
 add_library(loop-analysis-pass SHARED
         mp49774-an35288-loop-analysis-pass.cpp
+        #test-cases/binary_op_1.cpp
 )
 
 add_library(loop-opt-pass SHARED
         mp49774-an35288-loop-opt-pass.cpp
+        #test-cases/binary_op_1.cpp
 )
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
