@@ -5,8 +5,11 @@ int main() {
       x += 1;
     }
     else {
-      x -=1;
+        x -= 1;
+    }
+    if(x==5){
+        break;
     }
   }
-  return 0;
+  return x;
 }

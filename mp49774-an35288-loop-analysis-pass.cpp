@@ -69,21 +69,21 @@ LoopPropertiesAnalysis::LoopProperties::LoopProperties(
 }
 
 void LoopPropertiesAnalysis::LoopProperties::print(raw_ostream &OS) {
-  OS << id << ":\t"
+  OS << id << ": "
      << "func="       << func 
-     << ",\tdepth="    << depth;
+     << ", depth="    << depth;
 
   if (subLoops) {
-    OS << ",\tsubLoops=true";
+    OS << ", subLoops=true";
   } 
   else {
-    OS << ",\tsubLoops=false";
+    OS << ", subLoops=false";
   }
 
-  OS << ",\tBBs="      << BBs
-     << ",\tinstrs="   << instrs
-     << ",\tatomics="  << atomics
-     << ",\tbranches=" << branches << "\n";
+  OS << ", BBs="      << BBs
+     << ", instrs="   << instrs
+     << ", atomics="  << atomics
+     << ", branches=" << branches << "\n";
 }
 
 LoopPropertiesAnalysis::Result 
